@@ -1,7 +1,13 @@
+from distutils.version import StrictVersion
 import six
 
+from django import get_version as get_django_version
 from django.conf import settings
-from django.conf.urls import patterns, url
+if StrictVersion(get_django_version()) >= StrictVersion('1.7.0'):
+    from django.conf.urls import url
+else:
+    from django.conf.urls import patterns, url
+
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse, Http404
 from django.views.decorators.csrf import csrf_exempt
@@ -19,12 +25,12 @@ class DjangoResource(Resource):
     """
     # Because Django.
     @classmethod
-    def as_list(self, *args, **kwargs):
-        return csrf_exempt(super(DjangoResource, self).as_list(*args, **kwargs))
+    def as_list(cls, *args, **kwargs):
+        return csrf_exempt(super(DjangoResource, cls).as_list(*args, **kwargs))
 
     @classmethod
-    def as_detail(self, *args, **kwargs):
-        return csrf_exempt(super(DjangoResource, self).as_detail(*args, **kwargs))
+    def as_detail(cls, *args, **kwargs):
+        return csrf_exempt(super(DjangoResource, cls).as_detail(*args, **kwargs))
 
     def is_debug(self):
         # By default, Django-esque.
@@ -82,9 +88,12 @@ class DjangoResource(Resource):
             ``api_blogpost_list``
         :type name_prefix: string
 
-        :returns: A ``patterns`` object for ``include(...)``
+        :returns: A ``patterns`` or a ``list`` object for ``include(...)``
         """
-        return patterns('',
+        urls = [
             url(r'^$', cls.as_list(), name=cls.build_url_name('list', name_prefix)),
             url(r'^(?P<pk>\d+)/$', cls.as_detail(), name=cls.build_url_name('detail', name_prefix)),
-        )
+        ]
+        if StrictVersion(get_django_version()) >= StrictVersion('1.7.0'):
+            return urls
+        return patterns('', urls[0], urls[1])
